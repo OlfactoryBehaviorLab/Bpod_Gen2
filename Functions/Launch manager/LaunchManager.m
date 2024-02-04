@@ -158,43 +158,38 @@ else
     % Set selected protocol to first non-folder item
     protocolNames = get(BpodSystem.GUIHandles.ProtocolSelector, 'String');
     selectedProtocol = 1;
-    for iName = 1:length(protocolNames)
-        thisProtocolName = protocolNames{iName};
-        if thisProtocolName(1) == '<'
-            selectedProtocol = iName+1;
+
+    if(~strcmp(protocolNames{1}, 'No Protocols Found'))
+
+        for iName = 1:length(protocolNames)
+            thisProtocolName = protocolNames{iName};
+            if thisProtocolName(1) == '<'
+                selectedProtocol = iName+1;
+            end
         end
-    end
 
-    if selectedProtocol > length(protocolNames)
-        % If somehow our counter is higher than the number of protocols
-        % The last thing in the list must have been a folder
-        % Reset to first item in list
-        selectedProtocol = 1;
         set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', selectedProtocol);
-        return;
+        selectedProtocolName = protocolNames{selectedProtocol};
+        BpodSystem.Status.CurrentProtocolName = selectedProtocolName;
+        dataPath = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString);
+        protocolName = BpodSystem.Status.CurrentProtocolName;
+        %Make standard folders for this protocol.  This will fail silently if the folders exist
+        warning off % Suppress warning that directory already exists
+        mkdir(dataPath, protocolName);
+        mkdir(fullfile(dataPath,protocolName,'Session Data'))
+        mkdir(fullfile(dataPath,protocolName,'Session Settings'))
+        warning on
+        % Ensure that a default settings file exists
+        defaultSettingsFilePath = fullfile(dataPath,protocolName,'Session Settings', 'DefaultSettings.mat');
+        if ~exist(defaultSettingsFilePath, 'file')
+            ProtocolSettings = struct;
+            save(defaultSettingsFilePath, 'ProtocolSettings')
+        end
+        loadSubjects(protocolName);
+        loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
+        update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
+        BpodSystem.GUIData.ProtocolSelectorLastValue = 1;
     end
-
-    set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', selectedProtocol);
-    selectedProtocolName = protocolNames{selectedProtocol};
-    BpodSystem.Status.CurrentProtocolName = selectedProtocolName;
-    dataPath = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString);
-    protocolName = BpodSystem.Status.CurrentProtocolName;
-    %Make standard folders for this protocol.  This will fail silently if the folders exist
-    warning off % Suppress warning that directory already exists
-    mkdir(dataPath, protocolName);
-    mkdir(fullfile(dataPath,protocolName,'Session Data'))
-    mkdir(fullfile(dataPath,protocolName,'Session Settings'))
-    warning on
-    % Ensure that a default settings file exists
-    defaultSettingsFilePath = fullfile(dataPath,protocolName,'Session Settings', 'DefaultSettings.mat');
-    if ~exist(defaultSettingsFilePath)
-        ProtocolSettings = struct;
-        save(defaultSettingsFilePath, 'ProtocolSettings')
-    end
-    loadSubjects(protocolName);
-    loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
-    update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
-    BpodSystem.GUIData.ProtocolSelectorLastValue = 1;
 end
 
 function ProtocolSelectorNavigate (a,b)
