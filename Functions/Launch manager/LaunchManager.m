@@ -218,7 +218,6 @@ if selected_item(1) == '<' % The selected item is a folder
         if length(BpodSystem.Path.folder_tree_stack) > 1
             currentValue = currentValue - 2; % Subtract 2 to account for '.' and '..' when it isn't the root dir
         end
-
         new_folder = BpodSystem.Path.folder_tree_stack(end);
         disp(currentValue);
         new_folder = new_folder.subdirectory{currentValue};
@@ -226,48 +225,31 @@ if selected_item(1) == '<' % The selected item is a folder
         loadAvailableProtocols;
     end
 
+    protocolFolder = BpodSystem.Path.folder_tree_stack(end);
+    fullProtocolFolder = fullfile(protocolFolder.folder, protocolFolder.name);
+    BpodSystem.Path.ProtcolFolder = fullProtocolFolder;
+
+else % We've selected a protocol :)
+    protocolName = selected_item;
+    settingsFolder = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString,protocolName, 'Session Settings');
+    
+    if ~exist(settingsFolder, "dir")
+        mkdir(settingsFolder);
+    end
+
+    defaultSettingsPath = fullfile(settingsFolder,'DefaultSettings.mat');
+    
+    if ~exist(defaultSettingsPath, 'file')
+        ProtocolSettings = struct;
+        save(defaultSettingsPath, 'ProtocolSettings')
+    end
+
+            loadSubjects(protocolName);
+        loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
+        update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
+        BpodSystem.Status.CurrentProtocolName = protocolName;
 end
 
-
-% if currentValue == BpodSystem.GUIData.ProtocolSelectorLastValue
-%     candidate = String{currentValue};
-%     if candidate(1) == '<'
-%         folderName = candidate(2:end-1);
-%         set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', 1);
-%         if folderName(1) == '.'
-%             BpodSystem.Path.ProtocolFolder = BpodSystem.SystemSettings.ProtocolFolder;
-%         else
-%             BpodSystem.Path.ProtocolFolder = fullfile(BpodSystem.Path.ProtocolFolder, folderName);
-%         end
-%         isNewFolder = true;
-%         loadAvailableProtocols;
-%     end
-% else
-%     protocolName = String{currentValue};
-%     if protocolName(1) ~= '<'
-%         % Make sure a default settings file exists
-%         settingsFolder = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString,protocolName, 'Session Settings');
-%         if ~exist(settingsFolder)
-%             mkdir(settingsFolder);
-%         end
-%         defaultSettingsPath = fullfile(settingsFolder,'DefaultSettings.mat');
-%         % Ensure that a default settings file exists
-%         if ~exist(defaultSettingsPath)
-%             ProtocolSettings = struct;
-%             save(defaultSettingsPath, 'ProtocolSettings')
-%         end
-
-%         loadSubjects(protocolName);
-%         loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
-%         update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
-%         BpodSystem.Status.CurrentProtocolName = protocolName;
-%     end
-% end
-% if isNewFolder
-%     BpodSystem.GUIData.ProtocolSelectorLastValue = 1;
-% else
-%     BpodSystem.GUIData.ProtocolSelectorLastValue = currentValue;
-% end
 
 
 function subject_selector_navigate(a,b)
