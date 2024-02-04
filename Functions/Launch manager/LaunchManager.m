@@ -160,17 +160,14 @@ else
     selectedProtocol = 1;
 
     if(~strcmp(protocolNames{1}, 'No Protocols Found'))
-
-        for iName = 1:length(protocolNames)
-            thisProtocolName = protocolNames{iName};
-            if thisProtocolName(1) == '<'
-                selectedProtocol = iName+1;
-            end
-        end
-
-        set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', selectedProtocol);
-        selectedProtocolName = protocolNames{selectedProtocol};
-        BpodSystem.Status.CurrentProtocolName = selectedProtocolName;
+        first_item = @(item) [item(1)]; % Anonymous function to grab first index of an item 
+        first_items = cellfun(first_item, protocolNames); % Apply our anonymous function to each protocol
+        protocols = find(first_items ~= '<'); % Find the ones that are not folders
+        if ~isempty(protocols)
+            selectedProtocol = protocols(1);
+            set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', selectedProtocol);
+            selectedProtocolName = protocolNames{selectedProtocol};
+            BpodSystem.Status.CurrentProtocolName = selectedProtocolName;
         dataPath = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString);
         protocolName = BpodSystem.Status.CurrentProtocolName;
         %Make standard folders for this protocol.  This will fail silently if the folders exist
