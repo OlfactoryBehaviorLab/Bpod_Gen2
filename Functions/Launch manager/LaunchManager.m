@@ -306,30 +306,15 @@ else
         end
     end
 
+    if length(BpodSystem.Path.folder_tree_stack) > 1
+        protocolNames.folders = [{'.'}; {'..'}; protocolNames.folders];
+    end
+
     ordered_protocol_names = [protocolNames.folders; protocolNames.protocols]; % Stack the cells with folders first then protocols
 
     set(BpodSystem.GUIHandles.ProtocolSelector, 'String', ordered_protocol_names)
 end
 
-% %% Lets see if we can avoid touching this junk below
-
-
-
-% if isempty(protocolNames)
-%     protocolNames = {'No Protocols Found'};
-% else
-%     % Sort to put organizing directories first
-%     Types = ones(1,nProtocols);
-%     for i = 1:nProtocols
-%         protocolName = protocolNames{i};
-%         if protocolName(1) == '<'
-%             Types(i) = 0;
-%         end
-%     end
-%     [a, Order] = sort(Types);
-%     protocolNames = protocolNames(Order);
-% end
-% set(BpodSystem.GUIHandles.ProtocolSelector, 'String', protocolNames);
 
 function loadSubjects(ProtocolName)
 global BpodSystem % Import the global BpodSystem object
