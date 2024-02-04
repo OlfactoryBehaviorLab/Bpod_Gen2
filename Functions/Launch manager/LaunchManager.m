@@ -286,12 +286,12 @@ protocolNames = struct;
 protocolNames.folders = {};
 protocolNames.protocols = {};
 
-if isempty(BpodSystem.Path.folder_tree_stack) %#ok<*NODEF> % If this is the first run, lets start at the root directory
+if isempty(BpodSystem.Path.folder_tree_stack) % If this is the first run, lets start at the root directory
     BpodSystem.Path.folder_tree_stack = {{root_directory}};
 end
 
 if(isempty(root_directory.subdirectory))
-    protocolNames = {}; %#ok<NASGU> % If the root directory has no subdirs, it must be empty
+    protocolNames = {}; % If the root directory has no subdirs, it must be empty
 else
     pointer = BpodSystem.Path.folder_tree_stack(end); % We are currently in the last folder on the stack
     %pointer = pointer{1};
