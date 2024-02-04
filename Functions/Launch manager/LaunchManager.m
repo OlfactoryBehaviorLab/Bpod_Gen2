@@ -200,47 +200,74 @@ end
 function ProtocolSelectorNavigate (a,b)
 global BpodSystem % Import the global BpodSystem object
 isNewFolder = false;
-currentValue = get(BpodSystem.GUIHandles.ProtocolSelector, 'Value');
-String = get(BpodSystem.GUIHandles.ProtocolSelector, 'String');
-if currentValue == BpodSystem.GUIData.ProtocolSelectorLastValue
-    candidate = String{currentValue};
-    if candidate(1) == '<'
-        folderName = candidate(2:end-1);
-        set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', 1);
-        if folderName(1) == '.'
-            BpodSystem.Path.ProtocolFolder = BpodSystem.SystemSettings.ProtocolFolder;
-        else
-            BpodSystem.Path.ProtocolFolder = fullfile(BpodSystem.Path.ProtocolFolder, folderName);
-        end
-        isNewFolder = true;
-        loadAvailableProtocols;
-    end
-else
-    protocolName = String{currentValue};
-    if protocolName(1) ~= '<'
-        % Make sure a default settings file exists
-        settingsFolder = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString,protocolName, 'Session Settings');
-        if ~exist(settingsFolder)
-            mkdir(settingsFolder);
-        end
-        defaultSettingsPath = fullfile(settingsFolder,'DefaultSettings.mat');
-        % Ensure that a default settings file exists
-        if ~exist(defaultSettingsPath)
-            ProtocolSettings = struct;
-            save(defaultSettingsPath, 'ProtocolSettings')
+currentValue = get(BpodSystem.GUIHandles.ProtocolSelector, 'Value'); % Index of currently selected object
+String = get(BpodSystem.GUIHandles.ProtocolSelector, 'String'); % List of items to select
+
+selected_item = String{currentValue};
+
+if selected_item(1) == '<' % The selected item is a folder
+    folder_name = selected_item(3:end-2); % Remove <  >
+    
+    if strcmp(folder_name, '.')
+        BpodSystem.Path.folder_tree_stack(2:end) = []; % Reset to root dir
+        loadAvailableProtocols; % Reload 
+    elseif strcmp(folder_name, '..')
+        BpodSystem.Path.folder_tree_stack(end) = []; % Pop last item off stack
+        loadAvailableProtocols; % Reload
+    else
+        if length(BpodSystem.Path.folder_tree_stack) > 1
+            currentValue = currentValue - 2; % Subtract 2 to account for '.' and '..' when it isn't the root dir
         end
 
-        loadSubjects(protocolName);
-        loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
-        update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
-        BpodSystem.Status.CurrentProtocolName = protocolName;
+        new_folder = BpodSystem.Path.folder_tree_stack(end);
+        disp(currentValue);
+        new_folder = new_folder.subdirectory{currentValue};
+        BpodSystem.Path.folder_tree_stack = [BpodSystem.Path.folder_tree_stack new_folder];
+        loadAvailableProtocols;
     end
+
 end
-if isNewFolder
-    BpodSystem.GUIData.ProtocolSelectorLastValue = 1;
-else
-    BpodSystem.GUIData.ProtocolSelectorLastValue = currentValue;
-end
+
+
+% if currentValue == BpodSystem.GUIData.ProtocolSelectorLastValue
+%     candidate = String{currentValue};
+%     if candidate(1) == '<'
+%         folderName = candidate(2:end-1);
+%         set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', 1);
+%         if folderName(1) == '.'
+%             BpodSystem.Path.ProtocolFolder = BpodSystem.SystemSettings.ProtocolFolder;
+%         else
+%             BpodSystem.Path.ProtocolFolder = fullfile(BpodSystem.Path.ProtocolFolder, folderName);
+%         end
+%         isNewFolder = true;
+%         loadAvailableProtocols;
+%     end
+% else
+%     protocolName = String{currentValue};
+%     if protocolName(1) ~= '<'
+%         % Make sure a default settings file exists
+%         settingsFolder = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString,protocolName, 'Session Settings');
+%         if ~exist(settingsFolder)
+%             mkdir(settingsFolder);
+%         end
+%         defaultSettingsPath = fullfile(settingsFolder,'DefaultSettings.mat');
+%         % Ensure that a default settings file exists
+%         if ~exist(defaultSettingsPath)
+%             ProtocolSettings = struct;
+%             save(defaultSettingsPath, 'ProtocolSettings')
+%         end
+
+%         loadSubjects(protocolName);
+%         loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
+%         update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
+%         BpodSystem.Status.CurrentProtocolName = protocolName;
+%     end
+% end
+% if isNewFolder
+%     BpodSystem.GUIData.ProtocolSelectorLastValue = 1;
+% else
+%     BpodSystem.GUIData.ProtocolSelectorLastValue = currentValue;
+% end
 
 
 function subject_selector_navigate(a,b)
@@ -276,9 +303,9 @@ update_datafile(protocolName, selectedName);
 function loadAvailableProtocols
 global BpodSystem % Import the global BpodSystem object
 
-if isempty(BpodSystem.Path.directory_tree)
-    BpodSystem.Path.directory_tree = GetProtocols;
-end
+
+BpodSystem.Path.directory_tree = GetProtocols;
+
 
 root_directory = BpodSystem.Path.directory_tree(1);
 protocolNames = struct;
@@ -286,28 +313,33 @@ protocolNames.folders = {};
 protocolNames.protocols = {};
 
 if isempty(BpodSystem.Path.folder_tree_stack) %#ok<*NODEF> % If this is the first run, lets start at the root directory
-    BpodSystem.Path.folder_tree_stack = [root_directory];
+    BpodSystem.Path.folder_tree_stack = {{root_directory}};
 end
 
 if(isempty(root_directory.subdirectory))
     protocolNames = {}; %#ok<NASGU> % If the root directory has no subdirs, it must be empty
 else
     pointer = BpodSystem.Path.folder_tree_stack(end); % We are currently in the last folder on the stack
-    if(pointer.has_protocol) % Does this folder contain a protocol, if yes, add it to the list
-       protocol_name = pointer.name;
-       protocolNames.protocols = [potocolNames.protocols; protocol_name];
-    end
-
+    %pointer = pointer{1};
+    
     if ~isempty(pointer.subdirectory) % Does this folder contain subdirectories? If Yes, add them to the list as well
         for i = 1:length(pointer.subdirectory)
-            subdir = pointer.subdirectory{i}.name;
-            folder_name = ['<' subdir '>'];
+            subdir = pointer.subdirectory{i};
+            subdirName = subdir.name;
+            folder_name = ['< ' subdirName ' >'];
             protocolNames.folders = [protocolNames.folders; folder_name];
         end
     end
+    
+    if(pointer.has_protocol) % Does this folder contain a protocol, if yes, add it to the list
+       protocol_name = pointer.name;
+       protocolNames.protocols = [protocolNames.protocols; protocol_name];
+    end
+
+
 
     if length(BpodSystem.Path.folder_tree_stack) > 1
-        protocolNames.folders = [{'.'}; {'..'}; protocolNames.folders];
+        protocolNames.folders = [{'< . >'}; {'< .. >'}; protocolNames.folders];
     end
 
     ordered_protocol_names = [protocolNames.folders; protocolNames.protocols]; % Stack the cells with folders first then protocols
