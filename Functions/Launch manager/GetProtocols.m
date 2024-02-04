@@ -1,28 +1,20 @@
-function protocol_folders = GetProtocols
+function root_folder = GetProtocols
 global BpodSystem
 
-protocol_folders = [];
 
-root_folder = BpodSystem.SystemSettings.ProtocolFolder;
 
-folder_contents = dir(root_folder);
-folder_mask = [folder_contents.isdir];
-folders = folder_contents(folder_mask);
-folders = folders(3:end); % Always skip '.' and '..'
+root_folder_path = BpodSystem.SystemSettings.ProtocolFolder;
 
-if isempty(folders)
-    return % If there are no folders in the protocol folder, return, as there are no protocols
-else
-    for i = 1:length(folders) % If there are some folders, we are going to check each of them!
-        returned_folder = walk_dir(folders(i)); %#ok<NASGU>
-         
-        if(~isempty(returned_folder.subdirectory))
-            protocol_folders = [protocol_folders returned_folder;]
-        end
-    end
+
+root_folder = dir(root_folder_path);
+
+% folder_mask = [root_folder.isdir];
+% sub_folders = root_folder(folder_mask);
+% sub_folders = sub_folders(3:end); % Always skip '.' and '..'
+
+    root_folder = walk_dir(root_folder(1));
 end
 
-end
 
 function directory = walk_dir(directory)
     directory.has_protocol = false;
@@ -42,8 +34,8 @@ function directory = walk_dir(directory)
 
     for i = 1:length(folders)
         return_directory = walk_dir(folders(i));
-        if(return_directory.has_protocol)
-            directory.subdirectory = return_directory;
+        if or(return_directory.has_protocol, ~isempty(return_directory.subdirectory))
+            directory.subdirectory = [directory.subdirectory return_directory];
         end
     end
 
