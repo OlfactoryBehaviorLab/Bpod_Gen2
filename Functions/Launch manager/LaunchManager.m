@@ -20,8 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 function LaunchManager
 
 global BpodSystem % Import the global BpodSystem object
-BpodSystem.Path.folder_tree_stack = {}; %#ok<*NASGU>
-BpodSystem.Path.directory_tree = {};
+% BpodSystem.Path.folder_tree_stack = {}; %#ok<*NASGU>
+% BpodSystem.Path.directory_tree = {};
 
 
 drawFig = 1;
@@ -275,64 +275,61 @@ update_datafile(protocolName, selectedName);
 
 function loadAvailableProtocols
 global BpodSystem % Import the global BpodSystem object
-directory_tree = BpodSystem.Path.directory_tree;
-folder_tree_stack = BpodSystem.Path.folder_tree_stack;
 
-
-if isempty(directory_tree)
-    directory_tree = GetProtocols;
+if isempty(BpodSystem.Path.directory_tree)
+    BpodSystem.Path.directory_tree = GetProtocols;
 end
 
-root_directory = directory_tree(1);
+root_directory = BpodSystem.Path.directory_tree(1);
 protocolNames = struct;
-protocolNames.folders = [];
-protocolNames.protocols = [];
+protocolNames.folders = {};
+protocolNames.protocols = {};
 
-if isempty(folder_tree_stack) %#ok<*NODEF> % If this is the first run, lets start at the root directory
-    folder_tree_stack = {root_directory};
-    if(isempty(root_directory.subdirectory))
-        protocolNames = {}; % If the root directory has no subdirs, it must be empty
-    end
+if isempty(BpodSystem.Path.folder_tree_stack) %#ok<*NODEF> % If this is the first run, lets start at the root directory
+    BpodSystem.Path.folder_tree_stack = [root_directory];
+end
+
+if(isempty(root_directory.subdirectory))
+    protocolNames = {}; %#ok<NASGU> % If the root directory has no subdirs, it must be empty
 else
-    pointer = folder_tree_stack(end);
-    if(pointer.has_protocol)
+    pointer = BpodSystem.Path.folder_tree_stack(end); % We are currently in the last folder on the stack
+    if(pointer.has_protocol) % Does this folder contain a protocol, if yes, add it to the list
        protocol_name = pointer.name;
-       protocolNames.protocols = [potocolNames.protocols protocol_name];
+       protocolNames.protocols = [potocolNames.protocols; protocol_name];
     end
 
-    if ~isempty(pointer.subdirectory)
+    if ~isempty(pointer.subdirectory) % Does this folder contain subdirectories? If Yes, add them to the list as well
         for i = 1:length(pointer.subdirectory)
-            subdir = pointer.subdirectory(i).name;
+            subdir = pointer.subdirectory{i}.name;
             folder_name = ['<' subdir '>'];
-            protocolNames.folders = [protocolNames.folders folder_name];
+            protocolNames.folders = [protocolNames.folders; folder_name];
         end
     end
 
-    ordered_protocol_names = [protocolNames.folders protocolNames.protocols];
+    ordered_protocol_names = [protocolNames.folders; protocolNames.protocols]; % Stack the cells with folders first then protocols
 
-    set(BpodSystem.GUIHandles.ProtocolSelector, 'String', protocolNames)
+    set(BpodSystem.GUIHandles.ProtocolSelector, 'String', ordered_protocol_names)
 end
 
-disp(protocolNames)
-%% Lets see if we can avoid touching this junk below
+% %% Lets see if we can avoid touching this junk below
 
 
 
-if isempty(protocolNames)
-    protocolNames = {'No Protocols Found'};
-else
-    % Sort to put organizing directories first
-    Types = ones(1,nProtocols);
-    for i = 1:nProtocols
-        protocolName = protocolNames{i};
-        if protocolName(1) == '<'
-            Types(i) = 0;
-        end
-    end
-    [a, Order] = sort(Types);
-    protocolNames = protocolNames(Order);
-end
-set(BpodSystem.GUIHandles.ProtocolSelector, 'String', protocolNames);
+% if isempty(protocolNames)
+%     protocolNames = {'No Protocols Found'};
+% else
+%     % Sort to put organizing directories first
+%     Types = ones(1,nProtocols);
+%     for i = 1:nProtocols
+%         protocolName = protocolNames{i};
+%         if protocolName(1) == '<'
+%             Types(i) = 0;
+%         end
+%     end
+%     [a, Order] = sort(Types);
+%     protocolNames = protocolNames(Order);
+% end
+% set(BpodSystem.GUIHandles.ProtocolSelector, 'String', protocolNames);
 
 function loadSubjects(ProtocolName)
 global BpodSystem % Import the global BpodSystem object
