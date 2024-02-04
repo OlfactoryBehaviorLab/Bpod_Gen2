@@ -19,7 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %}
 function LaunchManager
 
-global BpodSystem% Import the global BpodSystem object
+global BpodSystem % Import the global BpodSystem object
+BpodSystem.Path.folder_tree_stack = {}; %#ok<*NASGU>
+BpodSystem.Path.directory_tree = {};
+
 
 drawFig = 1;
 if isfield(BpodSystem.GUIHandles, 'LaunchManagerFig') && ~verLessThan('MATLAB', '8.4')
@@ -150,7 +153,7 @@ elseif isempty(BpodSystem.Path.DataFolder)
     BpodSystem.setupFolders;
     close(BpodSystem.GUIHandles.LaunchManagerFig);
 else
-    loadProtocols;
+    loadAvailableProtocols;
     BpodSystem.GUIData.DummySubjectString = 'FakeSubject';
     % Set selected protocol to first non-folder item
     protocolNames = get(BpodSystem.GUIHandles.ProtocolSelector, 'String');
@@ -210,7 +213,7 @@ if currentValue == BpodSystem.GUIData.ProtocolSelectorLastValue
             BpodSystem.Path.ProtocolFolder = fullfile(BpodSystem.Path.ProtocolFolder, folderName);
         end
         isNewFolder = true;
-        loadProtocols;
+        loadAvailableProtocols;
     end
 else
     protocolName = String{currentValue};
@@ -270,36 +273,50 @@ set(BpodSystem.GUIHandles.SettingsSelector, 'Value', 1);
 BpodSystem.Status.CurrentSubjectName = selectedName;
 update_datafile(protocolName, selectedName);
 
-function loadProtocols
+function loadAvailableProtocols
 global BpodSystem % Import the global BpodSystem object
-if strcmp(BpodSystem.Path.ProtocolFolder, BpodSystem.SystemSettings.ProtocolFolder)
-    startPos = 3;
-else
-    startPos = 2;
+directory_tree = BpodSystem.Path.directory_tree;
+folder_tree_stack = BpodSystem.Path.folder_tree_stack;
+
+
+if isempty(directory_tree)
+    directory_tree = GetProtocols;
 end
-candidates = dir(BpodSystem.Path.ProtocolFolder);
-protocolNames = cell(0);
-nProtocols = 0;
-for x = startPos:length(candidates)
-    if candidates(x).isdir
-        protocolFolder = fullfile(BpodSystem.Path.ProtocolFolder, candidates(x).name);
-        contents = dir(protocolFolder);
-        nItems = length(contents);
-        found = 0;
-        for y = 3:nItems
-            if strcmp(contents(y).name, [candidates(x).name '.m'])
-                found = 1;
-            end
-        end
-        if found
-            protocolName = candidates(x).name;
-        else
-            protocolName = ['<' candidates(x).name '>'];
-        end
-        nProtocols = nProtocols + 1;
-        protocolNames{nProtocols} = protocolName;
+
+root_directory = directory_tree(1);
+protocolNames = struct;
+protocolNames.folders = [];
+protocolNames.protocols = [];
+
+if isempty(folder_tree_stack) %#ok<*NODEF> % If this is the first run, lets start at the root directory
+    folder_tree_stack = {root_directory};
+    if(isempty(root_directory.subdirectory))
+        protocolNames = {}; % If the root directory has no subdirs, it must be empty
     end
+else
+    pointer = folder_tree_stack(end);
+    if(pointer.has_protocol)
+       protocol_name = pointer.name;
+       protocolNames.protocols = [potocolNames.protocols protocol_name];
+    end
+
+    if ~isempty(pointer.subdirectory)
+        for i = 1:length(pointer.subdirectory)
+            subdir = pointer.subdirectory(i).name;
+            folder_name = ['<' subdir '>'];
+            protocolNames.folders = [protocolNames.folders folder_name];
+        end
+    end
+
+    ordered_protocol_names = [protocolNames.folders protocolNames.protocols];
+
+    set(BpodSystem.GUIHandles.ProtocolSelector, 'String', protocolNames)
 end
+
+disp(protocolNames)
+%% Lets see if we can avoid touching this junk below
+
+
 
 if isempty(protocolNames)
     protocolNames = {'No Protocols Found'};
@@ -485,7 +502,7 @@ if ~isempty(newName)
         fclose(file1);
         edit(newProtocolFile);
         set(BpodSystem.GUIHandles.ProtocolSelector,'Value',1);
-        loadProtocols
+        loadAvailableProtocols
     end
 end
 
@@ -652,7 +669,7 @@ if selectedProtocol ~= 1
     if ((okToDelete == 1) && (~isempty(selectedProtocolName)))
         rmdir(protocolPath, 's');
         set(BpodSystem.GUIHandles.ProtocolSelector,'Value',1);
-        loadProtocols
+        loadAvailableProtocols
     end
 end
 
