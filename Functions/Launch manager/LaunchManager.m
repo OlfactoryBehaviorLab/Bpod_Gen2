@@ -139,13 +139,13 @@ if isfield(BpodSystem.SystemSettings, 'ProtocolFolder')
     BpodSystem.Path.ProtocolFolder = BpodSystem.SystemSettings.ProtocolFolder;
 end
 
-if isempty(BpodSystem.Path.ProtocolFolder)
+if or(isempty(BpodSystem.Path.ProtocolFolder), ~exist(BpodSystem.Path.ProtocolFolder, 'dir'))
     choice = questdlg('Protocols folder not found.', ...
         'Protocol folder not found', ...
         'Select folder', 'Select folder');
     BpodSystem.setupFolders;
     close(BpodSystem.GUIHandles.LaunchManagerFig);
-elseif isempty(BpodSystem.Path.DataFolder)
+elseif or(isempty(BpodSystem.Path.DataFolder), ~exist(BpodSystem.Path.DataFolder, 'dir'))
     choice = questdlg('Data folder not found.', ...
         'Data folder not found', ...
         'Select folder', 'Select folder');
@@ -181,21 +181,31 @@ else
             ProtocolSettings = struct;
             save(defaultSettingsFilePath, 'ProtocolSettings')
         end
-        loadSubjects(protocolName);
-        loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
-        update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
-        BpodSystem.GUIData.ProtocolSelectorLastValue = 1;
+            loadSubjects(protocolName);
+            loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
+            update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
+            
+        end
     end
+    
 end
+
 
 function ProtocolSelectorNavigate (a,b)
 global BpodSystem % Import the global BpodSystem object
+
+if ~isfield(BpodSystem.GUIData, 'ProtocolSelectorLastValue')
+    BpodSystem.GUIData.ProtocolSelectorLastValue = [];
+end
+
 isNewFolder = false;
 currentValue = get(BpodSystem.GUIHandles.ProtocolSelector, 'Value'); % Index of currently selected object
 String = get(BpodSystem.GUIHandles.ProtocolSelector, 'String'); % List of items to select
 
-selected_item = String{currentValue};
+if currentValue == BpodSystem.GUIData.ProtocolSelectorLastValue % Hacky double click function
+    BpodSystem.GUIData.ProtocolSelectorLastValue = 0; % Reset check for double click
 
+    selected_item = String{currentValue};
     disp(selected_item)
     if selected_item(1) == '<' % The selected item is a folder
         folder_name = selected_item(3:end-2); % Remove <  >
@@ -216,15 +226,17 @@ selected_item = String{currentValue};
             BpodSystem.Path.DirectoryTreeStack = [BpodSystem.Path.DirectoryTreeStack new_folder]; % Add folder to the stack
             loadAvailableProtocols; % Reload 
         end
-            protocolFolder = BpodSystem.Path.DirectoryTreeStack(end);
-            protocolFolder = protocolFolder{1};
-            fullProtocolFolder = fullfile(protocolFolder.folder, protocolFolder.name);
-            BpodSystem.Path.ProtcolFolder = fullProtocolFolder;
 
-else % We've selected a protocol :)
-    protocolName = selected_item;
-    settingsFolder = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString,protocolName, 'Session Settings');
-    
+
+    else % We've selected a protocol :)
+        protocolFolder = BpodSystem.Path.DirectoryTreeStack(end);
+        protocolFolder = protocolFolder{1};
+        fullProtocolFolder = protocolFolder.folder;
+        BpodSystem.Path.ProtocolFolder = fullProtocolFolder;
+
+        protocolName = selected_item;
+        settingsFolder = fullfile(BpodSystem.Path.DataFolder,BpodSystem.GUIData.DummySubjectString,protocolName, 'Session Settings');
+        
     if ~exist(settingsFolder, "dir")
         mkdir(settingsFolder);
     end
@@ -238,10 +250,13 @@ else % We've selected a protocol :)
 
             loadSubjects(protocolName);
         loadSettings(protocolName, BpodSystem.GUIData.DummySubjectString);
-        update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
-        BpodSystem.Status.CurrentProtocolName = protocolName;
-end
+            update_datafile(protocolName, BpodSystem.GUIData.DummySubjectString);
+            BpodSystem.Status.CurrentProtocolName = protocolName;
+    end
+else
+    BpodSystem.GUIData.ProtocolSelectorLastValue = currentValue;
 
+end
 
 
 function subject_selector_navigate(a,b)
@@ -318,7 +333,6 @@ else
     end
     
     ordered_protocol_names = [protocolNames.folders; protocolNames.protocols]; % Stack the cells with folders first then protocols
-    disp(ordered_protocol_names)
     set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', 1)
     set(BpodSystem.GUIHandles.ProtocolSelector, 'String', ordered_protocol_names)
     
