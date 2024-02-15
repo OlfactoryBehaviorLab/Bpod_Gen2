@@ -288,6 +288,12 @@ protocolNames.protocols = {};
 
 if isempty(BpodSystem.Path.folder_tree_stack) % If this is the first run, lets start at the root directory
     BpodSystem.Path.folder_tree_stack = {{root_directory}};
+if ~isfield(BpodSystem.Path, 'DirectoryTreeStack') % Searched many hours for you
+    BpodSystem.Path.DirectoryTreeStack = {};
+end
+
+if isempty(BpodSystem.Path.DirectoryTreeStack) % If this is the first run, lets start at the root directory
+    BpodSystem.Path.DirectoryTreeStack = {root_directory};
 end
 
 if(isempty(root_directory.subdirectory))
@@ -318,6 +324,7 @@ else
 
     ordered_protocol_names = [protocolNames.folders; protocolNames.protocols]; % Stack the cells with folders first then protocols
 
+    set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', 1)
     set(BpodSystem.GUIHandles.ProtocolSelector, 'String', ordered_protocol_names)
 end
 
