@@ -18,10 +18,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %}
 function LaunchManager
-
+%#ok<*NASGU>, <*NODEF>
 global BpodSystem % Import the global BpodSystem object
-% BpodSystem.Path.folder_tree_stack = {}; %#ok<*NASGU>
-% BpodSystem.Path.directory_tree = {};
+
 
 
 drawFig = 1;
@@ -197,29 +196,30 @@ String = get(BpodSystem.GUIHandles.ProtocolSelector, 'String'); % List of items 
 
 selected_item = String{currentValue};
 
-if selected_item(1) == '<' % The selected item is a folder
-    folder_name = selected_item(3:end-2); % Remove <  >
-    
-    if strcmp(folder_name, '.')
-        BpodSystem.Path.folder_tree_stack(2:end) = []; % Reset to root dir
-        loadAvailableProtocols; % Reload 
-    elseif strcmp(folder_name, '..')
-        BpodSystem.Path.folder_tree_stack(end) = []; % Pop last item off stack
-        loadAvailableProtocols; % Reload
-    else
-        if length(BpodSystem.Path.folder_tree_stack) > 1
-            currentValue = currentValue - 2; % Subtract 2 to account for '.' and '..' when it isn't the root dir
+    disp(selected_item)
+    if selected_item(1) == '<' % The selected item is a folder
+        folder_name = selected_item(3:end-2); % Remove <  >
+        
+        if strcmp(folder_name, '.')
+            BpodSystem.Path.DirectoryTreeStack(2:end) = []; % Reset to root dir
+            loadAvailableProtocols; % Reload 
+        elseif strcmp(folder_name, '..')
+            BpodSystem.Path.DirectoryTreeStack(end) = []; % Pop last item off stack
+            loadAvailableProtocols; % Reload 
+        else
+            if length(BpodSystem.Path.DirectoryTreeStack) > 1
+                currentValue = currentValue - 2; % Subtract 2 to account for '.' and '..' when it isn't the root dir
+            end
+            new_folder = BpodSystem.Path.DirectoryTreeStack(end);
+            new_folder = new_folder{1};
+            new_folder = new_folder.subdirectory{currentValue};
+            BpodSystem.Path.DirectoryTreeStack = [BpodSystem.Path.DirectoryTreeStack new_folder]; % Add folder to the stack
+            loadAvailableProtocols; % Reload 
         end
-        new_folder = BpodSystem.Path.folder_tree_stack(end);
-        disp(currentValue);
-        new_folder = new_folder.subdirectory{currentValue};
-        BpodSystem.Path.folder_tree_stack = [BpodSystem.Path.folder_tree_stack new_folder];
-        loadAvailableProtocols;
-    end
-
-    protocolFolder = BpodSystem.Path.folder_tree_stack(end);
-    fullProtocolFolder = fullfile(protocolFolder.folder, protocolFolder.name);
-    BpodSystem.Path.ProtcolFolder = fullProtocolFolder;
+            protocolFolder = BpodSystem.Path.DirectoryTreeStack(end);
+            protocolFolder = protocolFolder{1};
+            fullProtocolFolder = fullfile(protocolFolder.folder, protocolFolder.name);
+            BpodSystem.Path.ProtcolFolder = fullProtocolFolder;
 
 else % We've selected a protocol :)
     protocolName = selected_item;
@@ -277,17 +277,13 @@ update_datafile(protocolName, selectedName);
 function loadAvailableProtocols
 global BpodSystem % Import the global BpodSystem object
 
+BpodSystem.Path.DirectoryTree = GetProtocols;
 
-BpodSystem.Path.directory_tree = GetProtocols;
-
-
-root_directory = BpodSystem.Path.directory_tree(1);
+root_directory = BpodSystem.Path.DirectoryTree(1);
 protocolNames = struct;
 protocolNames.folders = {};
 protocolNames.protocols = {};
 
-if isempty(BpodSystem.Path.folder_tree_stack) % If this is the first run, lets start at the root directory
-    BpodSystem.Path.folder_tree_stack = {{root_directory}};
 if ~isfield(BpodSystem.Path, 'DirectoryTreeStack') % Searched many hours for you
     BpodSystem.Path.DirectoryTreeStack = {};
 end
@@ -296,11 +292,11 @@ if isempty(BpodSystem.Path.DirectoryTreeStack) % If this is the first run, lets 
     BpodSystem.Path.DirectoryTreeStack = {root_directory};
 end
 
-if(isempty(root_directory.subdirectory))
+if isempty(root_directory.subdirectory)
     protocolNames = {}; % If the root directory has no subdirs, it must be empty
 else
-    pointer = BpodSystem.Path.folder_tree_stack(end); % We are currently in the last folder on the stack
-    %pointer = pointer{1};
+    pointer = BpodSystem.Path.DirectoryTreeStack(end); % We are currently in the last folder on the stack
+    pointer = pointer{1};
     
     if ~isempty(pointer.subdirectory) % Does this folder contain subdirectories? If Yes, add them to the list as well
         for i = 1:length(pointer.subdirectory)
@@ -309,6 +305,7 @@ else
             folder_name = ['< ' subdirName ' >'];
             protocolNames.folders = [protocolNames.folders; folder_name];
         end
+        disp(protocolNames.folders)
     end
     
     if(pointer.has_protocol) % Does this folder contain a protocol, if yes, add it to the list
@@ -316,16 +313,15 @@ else
        protocolNames.protocols = [protocolNames.protocols; protocol_name];
     end
 
-
-
-    if length(BpodSystem.Path.folder_tree_stack) > 1
+    if length(BpodSystem.Path.DirectoryTreeStack) > 1
         protocolNames.folders = [{'< . >'}; {'< .. >'}; protocolNames.folders];
     end
-
+    
     ordered_protocol_names = [protocolNames.folders; protocolNames.protocols]; % Stack the cells with folders first then protocols
-
+    disp(ordered_protocol_names)
     set(BpodSystem.GUIHandles.ProtocolSelector, 'Value', 1)
     set(BpodSystem.GUIHandles.ProtocolSelector, 'String', ordered_protocol_names)
+    
 end
 
 
